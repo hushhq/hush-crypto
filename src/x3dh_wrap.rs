@@ -8,9 +8,8 @@ use x25519_dalek::{PublicKey, StaticSecret};
 use crate::session::SessionState;
 
 /// Server bundle format (matches GET /api/keys/:userId/:deviceId response).
-/// Uses camelCase to match the Go server's JSON serialization.
+/// JS normalizes Go's camelCase + base64 to snake_case + arrays before passing here.
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct ServerBundle {
     pub identity_key: Vec<u8>,
