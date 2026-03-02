@@ -259,8 +259,7 @@ checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 [[package]]
 name = "libsignal-dezire"
 version = "0.1.146"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5792e8b86c5890faef0081102cc1defc9f99b87c6516ac66d2eecb45a9de11bb"
+source = "git+https://github.com/YarinCardillo/libsignal-dezire.git?rev=3a16e43#3a16e43304192605064477f4c82ca2f8c4d61fb8"
 dependencies = [
  "aes",
  "aes-gcm",
