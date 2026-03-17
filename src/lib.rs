@@ -1,15 +1,12 @@
-//! Hush Signal Protocol wrapper: X3DH, Double Ratchet, session management.
-//! Builds as native lib and as WASM (wasm-pack --target web) for the web client.
+//! Hush cryptographic foundation: MLS credential and KeyPackage generation.
+//!
+//! Builds as both a native rlib and a WASM cdylib (wasm-pack --target web).
+//! The crate is stateless — it generates key material and returns bytes to
+//! the caller.  Persistence is the caller's responsibility.
 
-mod identity;
-mod prekey;
-mod session;
-mod x3dh_wrap;
-
-pub use identity::{generate_identity, IdentityKeyPair};
-pub use prekey::{generate_one_time_pre_keys, generate_signed_pre_key, PreKeyBundleForUpload};
-pub use session::{decrypt, encrypt, SessionState};
-pub use x3dh_wrap::{perform_x3dh, perform_x3dh_responder};
+pub mod credential;
+pub mod key_package;
+pub mod storage;
 
 #[cfg(target_arch = "wasm32")]
-mod wasm;
+pub mod wasm;
