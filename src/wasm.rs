@@ -1,177 +1,64 @@
 //! WASM bindings for the web client.
+//!
+//! Exports two functions via wasm-bindgen:
+//!   - `generateCredential(identity: string)` → `{ signingPublicKey, signingPrivateKey, credentialBytes }`
+//!   - `generateKeyPackage(signingPrivateKey, signingPublicKey, credentialBytes)` → `{ keyPackageBytes, privateKeyBytes, hashRefBytes }`
+//!
+//! Both functions return `JsValue` (JSON-compatible objects) via `serde_wasm_bindgen`.
+//! All `Vec<u8>` fields arrive in JS as `Uint8Array`.
 
-use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
-use crate::identity::generate_identity;
-use crate::prekey::{generate_one_time_pre_keys, generate_signed_pre_key};
-use crate::session::{decrypt as session_decrypt, encrypt as session_encrypt};
-use crate::x3dh_wrap::{perform_x3dh, perform_x3dh_responder};
+use crate::credential;
+use crate::key_package;
 
-#[wasm_bindgen(js_name = "init")]
-pub fn wasm_init() {
-    // No-op; optional future setup (e.g. panic hook for debug).
+/// No-op initialization hook retained for backward compatibility with
+/// `hushCrypto.js` callers that invoke `m.init()` after loading the WASM module.
+#[wasm_bindgen]
+pub fn init() {}
+
+/// Generate an MLS credential and Ed25519 signing keypair.
+///
+/// # Arguments
+///
+/// - `identity`: opaque string identifying the client (e.g. `"user_id:device_id"`)
+///
+/// # Returns
+///
+/// A JS object `{ signingPublicKey: Uint8Array, signingPrivateKey: Uint8Array, credentialBytes: Uint8Array }`
+///
+/// # Errors
+///
+/// Returns a `JsValue` error string on failure.
+#[wasm_bindgen(js_name = "generateCredential")]
+pub fn wasm_generate_credential(identity: &str) -> Result<JsValue, JsValue> {
+    credential::generate_credential(identity)
+        .map_err(|e| JsValue::from_str(&e))
+        .and_then(|out| serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string())))
 }
 
-#[wasm_bindgen(js_name = "generateIdentity")]
-pub fn wasm_generate_identity() -> Result<JsValue, JsValue> {
-    let pair = generate_identity().map_err(|e| JsValue::from_str(&e.to_string()))?;
-    let out = IdentityOut {
-        public_key: pair.public_key,
-        private_key: pair.private_key,
-        registration_id: pair.registration_id,
-    };
-    serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-#[derive(Serialize)]
-struct IdentityOut {
-    pub public_key: Vec<u8>,
-    pub private_key: Vec<u8>,
-    pub registration_id: u32,
-}
-
-#[wasm_bindgen(js_name = "generatePreKeyBundle")]
-pub fn wasm_generate_pre_key_bundle(
-    identity_public: &[u8],
-    identity_private: &[u8],
-    registration_id: u32,
-    num_one_time: usize,
+/// Generate an MLS KeyPackage from an existing credential.
+///
+/// # Arguments
+///
+/// - `signing_private_key`: 64-byte private key (seed || public) from `generateCredential`
+/// - `signing_public_key`: 32-byte Ed25519 public key from `generateCredential`
+/// - `credential_bytes`: TLS-serialized credential bytes from `generateCredential`
+///
+/// # Returns
+///
+/// A JS object `{ keyPackageBytes: Uint8Array, privateKeyBytes: Uint8Array, hashRefBytes: Uint8Array }`
+///
+/// # Errors
+///
+/// Returns a `JsValue` error string on failure.
+#[wasm_bindgen(js_name = "generateKeyPackage")]
+pub fn wasm_generate_key_package(
+    signing_private_key: &[u8],
+    signing_public_key: &[u8],
+    credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
-    let (signed_pk, sig, signed_pk_private) =
-        generate_signed_pre_key(identity_private, 1).map_err(|_| JsValue::from_str("signed prekey failed"))?;
-    let one_time =
-        generate_one_time_pre_keys(num_one_time, 0).map_err(|e| JsValue::from_str(&e.to_string()))?;
-    let one_time_entries: Vec<_> = one_time
-        .into_iter()
-        .map(|k| OneTimeOut {
-            key_id: k.key_id,
-            public_key: k.public_key,
-            private_key: k.private_key,
-        })
-        .collect();
-    let bundle = PreKeyBundleOut {
-        identity_key: identity_public.to_vec(),
-        signed_pre_key: signed_pk,
-        signed_pre_key_signature: sig,
-        signed_pre_key_private: signed_pk_private,
-        registration_id,
-        one_time_pre_keys: one_time_entries,
-    };
-    serde_wasm_bindgen::to_value(&bundle).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-#[derive(Serialize)]
-struct OneTimeOut {
-    key_id: u32,
-    public_key: Vec<u8>,
-    private_key: Vec<u8>,
-}
-
-#[derive(Serialize)]
-struct PreKeyBundleOut {
-    identity_key: Vec<u8>,
-    signed_pre_key: Vec<u8>,
-    signed_pre_key_signature: Vec<u8>,
-    signed_pre_key_private: Vec<u8>,
-    registration_id: u32,
-    one_time_pre_keys: Vec<OneTimeOut>,
-}
-
-#[wasm_bindgen(js_name = "performX3DH")]
-pub fn wasm_perform_x3dh(
-    remote_bundle_json: &str,
-    identity_private: &[u8],
-) -> Result<JsValue, JsValue> {
-    let result =
-        perform_x3dh(remote_bundle_json, identity_private).map_err(|e| JsValue::from_str(&e))?;
-    let out = X3DHOut {
-        state_bytes: result.state.state_bytes,
-        ephemeral_public: result.ephemeral_public,
-    };
-    serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-#[derive(Serialize)]
-struct X3DHOut {
-    state_bytes: Vec<u8>,
-    ephemeral_public: Vec<u8>,
-}
-
-/// X3DH responder (Bob). `opk_private` should be empty (length 0) if no OPK was used.
-#[wasm_bindgen(js_name = "performX3DHResponder")]
-pub fn wasm_perform_x3dh_responder(
-    identity_private: &[u8],
-    spk_private: &[u8],
-    spk_public: &[u8],
-    opk_private: &[u8],
-    alice_identity_public: &[u8],
-    alice_ephemeral_public: &[u8],
-) -> Result<JsValue, JsValue> {
-    let opk = if opk_private.is_empty() {
-        None
-    } else {
-        Some(opk_private)
-    };
-    let state = perform_x3dh_responder(
-        identity_private,
-        spk_private,
-        spk_public,
-        opk,
-        alice_identity_public,
-        alice_ephemeral_public,
-    )
-    .map_err(|e| JsValue::from_str(&e))?;
-
-    let out = X3DHResponderOut {
-        state_bytes: state.state_bytes,
-    };
-    serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-#[derive(Serialize)]
-struct X3DHResponderOut {
-    state_bytes: Vec<u8>,
-}
-
-#[wasm_bindgen(js_name = "encrypt")]
-pub fn wasm_encrypt(
-    state_bytes: &[u8],
-    plaintext: &[u8],
-    associated_data: &[u8],
-) -> Result<JsValue, JsValue> {
-    let (ciphertext, new_state) =
-        session_encrypt(state_bytes, plaintext, associated_data).map_err(|e| JsValue::from_str(&e))?;
-    let out = EncryptOut {
-        ciphertext,
-        updated_state: new_state,
-    };
-    serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-#[derive(Serialize)]
-struct EncryptOut {
-    ciphertext: Vec<u8>,
-    updated_state: Vec<u8>,
-}
-
-#[wasm_bindgen(js_name = "decrypt")]
-pub fn wasm_decrypt(
-    state_bytes: &[u8],
-    ciphertext: &[u8],
-    associated_data: &[u8],
-) -> Result<JsValue, JsValue> {
-    let (plaintext, new_state) =
-        session_decrypt(state_bytes, ciphertext, associated_data).map_err(|e| JsValue::from_str(&e))?;
-    let out = DecryptOut {
-        plaintext,
-        updated_state: new_state,
-    };
-    serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-#[derive(Serialize)]
-struct DecryptOut {
-    plaintext: Vec<u8>,
-    updated_state: Vec<u8>,
+    key_package::generate_key_package(signing_private_key, signing_public_key, credential_bytes)
+        .map_err(|e| JsValue::from_str(&e))
+        .and_then(|out| serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&e.to_string())))
 }
