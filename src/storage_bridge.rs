@@ -401,7 +401,10 @@ mod wasm_bridge {
             key_pairs: &[HpkeKeyPair],
         ) -> Result<(), Self::Error> {
             let compound_key = (group_id, epoch, leaf_index);
-            js_write(STORE_EPOCH_KEY_PAIRS, &compound_key, &key_pairs.to_vec())
+            // Serialize the slice directly via serde_json without requiring Clone.
+            let k = make_key(&compound_key)?;
+            let v = serde_json::to_vec(key_pairs)?;
+            writeBytes(STORE_EPOCH_KEY_PAIRS, &k, &v).map_err(JsStorageError::from)
         }
 
         fn write_key_package<
