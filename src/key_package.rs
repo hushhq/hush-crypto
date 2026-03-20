@@ -124,3 +124,71 @@ pub fn generate_key_package(
         hash_ref_bytes,
     })
 }
+
+/// Generate a KeyPackage using a provided `OpenMlsProvider`.
+///
+/// This variant stores the private key material into the *given* provider,
+/// making it suitable for native tests where the same provider instance is
+/// used for the subsequent Welcome-based join.
+///
+/// # Errors
+///
+/// Returns a `String` error description on any failure.
+pub fn generate_key_package_with_provider<P: openmls::prelude::OpenMlsProvider>(
+    provider: &P,
+    signing_private_key: &[u8],
+    signing_public_key: &[u8],
+    credential_bytes: &[u8],
+) -> Result<KeyPackageOutput, String> {
+    use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;
+    let credential = {
+        let mut slice = credential_bytes;
+        Credential::tls_deserialize(&mut slice)
+            .map_err(|e| format!("Credential TLS deserialize failed: {e}"))?
+    };
+
+    let seed = if signing_private_key.len() >= 32 {
+        signing_private_key[..32].to_vec()
+    } else {
+        signing_private_key.to_vec()
+    };
+
+    let signature_keys = SignatureKeyPair::from_raw(
+        CIPHERSUITE.into(),
+        seed,
+        signing_public_key.to_vec(),
+    );
+    signature_keys
+        .store(provider.storage())
+        .map_err(|e| format!("signature_keys.store failed: {e}"))?;
+
+    let credential_with_key = CredentialWithKey {
+        credential,
+        signature_key: signing_public_key.to_vec().into(),
+    };
+
+    let bundle = KeyPackage::builder()
+        .build(CIPHERSUITE, provider, &signature_keys, credential_with_key)
+        .map_err(|e| format!("KeyPackage::builder().build() failed: {e}"))?;
+
+    let hash_ref = bundle
+        .key_package()
+        .hash_ref(provider.crypto())
+        .map_err(|e| format!("hash_ref() failed: {e}"))?;
+
+    let private_key_bytes = bundle.init_private_key().to_vec();
+
+    let mut key_package_bytes = Vec::new();
+    bundle
+        .key_package()
+        .tls_serialize(&mut key_package_bytes)
+        .map_err(|e| format!("KeyPackage TLS serialize failed: {e}"))?;
+
+    let hash_ref_bytes = hash_ref.as_slice().to_vec();
+
+    Ok(KeyPackageOutput {
+        key_package_bytes,
+        private_key_bytes,
+        hash_ref_bytes,
+    })
+}
