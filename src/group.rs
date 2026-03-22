@@ -38,8 +38,22 @@ pub enum ProcessedMessageResult {
 /// Build the standard group create config used throughout Hush.
 fn make_create_config() -> MlsGroupCreateConfig {
     MlsGroupCreateConfig::builder()
-        .sender_ratchet_configuration(SenderRatchetConfiguration::new(10, 1000))
-        .max_past_epochs(5)
+        .sender_ratchet_configuration(SenderRatchetConfiguration::new(
+            10,   // SECURITY: out_of_order_tolerance — allows decrypting messages received
+                  // out of order within this window. Weakens forward secrecy — a compromised
+                  // key can decrypt this many additional messages. Set to 10 as a conscious
+                  // tradeoff between reliability on lossy/mobile networks and FS strength.
+            1000, // SECURITY: maximum_forward_distance — maximum epoch gap tolerated before
+                  // requiring re-sync. Limits how far ahead a malicious commit can advance
+                  // the epoch. Conscious tradeoff between availability during network
+                  // partitions and FS guarantees.
+        ))
+        .max_past_epochs(
+            5, // SECURITY: max_past_epochs — retains decryption keys for this many past
+               // epochs. Weakens forward secrecy — past epoch keys remain in memory.
+               // Conscious tradeoff to handle delayed messages during epoch transitions
+               // (member join/leave/rotation).
+        )
         .use_ratchet_tree_extension(true)
         .ciphersuite(CIPHERSUITE)
         .build()
@@ -48,8 +62,13 @@ fn make_create_config() -> MlsGroupCreateConfig {
 /// Build the standard group join config used throughout Hush.
 fn make_join_config() -> MlsGroupJoinConfig {
     MlsGroupJoinConfig::builder()
-        .sender_ratchet_configuration(SenderRatchetConfiguration::new(10, 1000))
-        .max_past_epochs(5)
+        .sender_ratchet_configuration(SenderRatchetConfiguration::new(
+            10,   // SECURITY: out_of_order_tolerance — see make_create_config for rationale.
+            1000, // SECURITY: maximum_forward_distance — see make_create_config for rationale.
+        ))
+        .max_past_epochs(
+            5, // SECURITY: max_past_epochs — see make_create_config for rationale.
+        )
         .use_ratchet_tree_extension(true)
         .build()
 }
@@ -467,4 +486,42 @@ pub fn get_group_epoch<P: OpenMlsProvider>(
 ) -> Result<u64, String> {
     let group = load_group(provider, group_id_bytes)?;
     Ok(group.epoch().as_u64())
+}
+
+/// Derive a 32-byte AES-256-GCM frame key from the current MLS group epoch.
+///
+/// This is a pure derivation using `MlsGroup::export_secret` — no state
+/// mutation occurs and no storage flush is needed. The key is deterministic
+/// for a given group at a given epoch: calling it twice returns identical bytes.
+///
+/// After an epoch-advancing commit (member join/leave, self-update), the
+/// derived key changes automatically — providing forward secrecy for voice
+/// frame encryption without any explicit key rotation logic.
+///
+/// # Arguments
+///
+/// * `group_id_bytes` — raw group ID bytes (typically the channel UUID bytes)
+///
+/// # Returns
+///
+/// A 32-byte key suitable for LiveKit `ExternalE2EEKeyProvider.setKey()`.
+///
+/// # Security
+///
+/// Label `"hush-voice-frame-key"` is unique to this application per RFC 9420
+/// section 8.4 to prevent cross-context key reuse.  The empty context slice
+/// is intentional — the group ID already encodes the channel identity.
+pub fn export_voice_frame_key<P: OpenMlsProvider>(
+    provider: &P,
+    group_id_bytes: &[u8],
+) -> Result<Vec<u8>, String> {
+    let group = load_group(provider, group_id_bytes)?;
+    group
+        .export_secret(
+            provider.crypto(),
+            "hush-voice-frame-key", // SECURITY: unique per-application label (RFC 9420 §8.4)
+            &[],                    // empty context — group ID already encodes the channel
+            32,                     // 256-bit AES-GCM key for LiveKit frame encryption
+        )
+        .map_err(|e| format!("export_secret failed: {e:?}"))
 }

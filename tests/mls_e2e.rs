@@ -1,7 +1,9 @@
-/// Integration tests for OpenMLS credential and KeyPackage generation.
+/// Integration tests for OpenMLS credential and KeyPackage generation,
+/// and MLS group lifecycle (export_voice_frame_key).
 /// These tests run on the native target (`cargo test`).
 
 use hush_crypto::credential::generate_credential;
+use hush_crypto::group;
 use hush_crypto::key_package::generate_key_package;
 
 #[test]
@@ -87,4 +89,105 @@ fn test_generate_key_package_round_trip_tls_deserialization() {
         .expect("key_package_bytes must TLS-deserialize into KeyPackageIn");
     // Verify the deserialized package has a non-empty leaf node
     drop(kp_in);
+}
+
+// ---------------------------------------------------------------------------
+// export_voice_frame_key tests (M.3-01)
+// ---------------------------------------------------------------------------
+
+/// Build an in-memory provider and a fresh single-member MLS group for testing.
+/// Returns (provider, group_id_bytes).
+fn make_test_group() -> (openmls_rust_crypto::OpenMlsRustCrypto, Vec<u8>) {
+    use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;
+    use openmls::prelude::*;
+    use openmls_basic_credential::SignatureKeyPair;
+    use hush_crypto::credential::CIPHERSUITE;
+
+    let provider = openmls_rust_crypto::OpenMlsRustCrypto::default();
+    let cred = generate_credential("test_user:device_1").unwrap();
+
+    let seed = &cred.signing_private_key[..32];
+    let signer = SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed.to_vec(), cred.signing_public_key.clone());
+
+    let credential = {
+        let mut slice = cred.credential_bytes.as_slice();
+        Credential::tls_deserialize(&mut slice).unwrap()
+    };
+    let cwk = CredentialWithKey {
+        credential,
+        signature_key: cred.signing_public_key.clone().into(),
+    };
+
+    let channel_id = b"test-channel-id-0001".to_vec();
+    group::create_group(&provider, &signer, cwk, &channel_id).unwrap();
+    (provider, channel_id)
+}
+
+/// Test 1: export_voice_frame_key returns exactly 32 bytes for a fresh group.
+#[test]
+fn test_export_voice_frame_key_returns_32_bytes() {
+    let (provider, group_id) = make_test_group();
+    let key = group::export_voice_frame_key(&provider, &group_id)
+        .expect("export_voice_frame_key must succeed");
+    assert_eq!(
+        key.len(),
+        32,
+        "Voice frame key must be 32 bytes (AES-256-GCM), got {}",
+        key.len()
+    );
+}
+
+/// Test 2: export_voice_frame_key is deterministic — same group, same epoch → same key.
+#[test]
+fn test_export_voice_frame_key_deterministic() {
+    let (provider, group_id) = make_test_group();
+    let key1 = group::export_voice_frame_key(&provider, &group_id).unwrap();
+    let key2 = group::export_voice_frame_key(&provider, &group_id).unwrap();
+    assert_eq!(
+        key1, key2,
+        "export_voice_frame_key must return identical bytes on repeated calls at the same epoch"
+    );
+}
+
+/// Test 3: export_voice_frame_key returns a different key after self_update advances the epoch.
+#[test]
+fn test_export_voice_frame_key_changes_after_epoch_advance() {
+    use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;
+    use openmls::prelude::*;
+    use openmls_basic_credential::SignatureKeyPair;
+    use hush_crypto::credential::CIPHERSUITE;
+
+    let provider = openmls_rust_crypto::OpenMlsRustCrypto::default();
+    let cred = generate_credential("test_user:device_epoch").unwrap();
+
+    let seed = &cred.signing_private_key[..32];
+    let signer = SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed.to_vec(), cred.signing_public_key.clone());
+
+    let credential = {
+        let mut slice = cred.credential_bytes.as_slice();
+        Credential::tls_deserialize(&mut slice).unwrap()
+    };
+    let cwk = CredentialWithKey {
+        credential,
+        signature_key: cred.signing_public_key.clone().into(),
+    };
+
+    let channel_id = b"test-channel-epoch-02".to_vec();
+    group::create_group(&provider, &signer, cwk, &channel_id).unwrap();
+
+    let key_before = group::export_voice_frame_key(&provider, &channel_id).unwrap();
+    let epoch_before = group::get_group_epoch(&provider, &channel_id).unwrap();
+
+    // Advance epoch via self_update + merge.
+    group::self_update(&provider, &signer, &channel_id).unwrap();
+    group::merge_pending_commit(&provider, &channel_id).unwrap();
+
+    let epoch_after = group::get_group_epoch(&provider, &channel_id).unwrap();
+    assert!(epoch_after > epoch_before, "Epoch must advance after self_update+merge");
+
+    let key_after = group::export_voice_frame_key(&provider, &channel_id).unwrap();
+    assert_ne!(
+        key_before, key_after,
+        "Voice frame key must change when epoch advances (forward secrecy)"
+    );
 }
