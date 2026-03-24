@@ -149,7 +149,51 @@ fn test_export_voice_frame_key_deterministic() {
     );
 }
 
-/// Test 3: export_voice_frame_key returns a different key after self_update advances the epoch.
+// ---------------------------------------------------------------------------
+// export_metadata_key tests (0O-02)
+// ---------------------------------------------------------------------------
+
+/// Test 1: export_metadata_key returns exactly 32 bytes for a fresh group.
+#[test]
+fn test_export_metadata_key_returns_32_bytes() {
+    let (provider, group_id) = make_test_group();
+    let key = group::export_metadata_key(&provider, &group_id)
+        .expect("export_metadata_key must succeed");
+    assert_eq!(
+        key.len(),
+        32,
+        "Metadata key must be 32 bytes (AES-256-GCM), got {}",
+        key.len()
+    );
+}
+
+/// Test 2: export_metadata_key is non-zero — a zero key would indicate a
+/// catastrophic derivation failure.
+#[test]
+fn test_export_metadata_key_is_nonzero() {
+    let (provider, group_id) = make_test_group();
+    let key = group::export_metadata_key(&provider, &group_id).unwrap();
+    assert!(
+        key.iter().any(|&b| b != 0),
+        "Metadata key must not be all-zero bytes"
+    );
+}
+
+/// Test 3: export_metadata_key produces different bytes than export_voice_frame_key
+/// for the same group at the same epoch — distinct labels must produce distinct keys.
+#[test]
+fn test_export_metadata_key_differs_from_voice_frame_key() {
+    let (provider, group_id) = make_test_group();
+    let metadata_key = group::export_metadata_key(&provider, &group_id).unwrap();
+    let voice_key = group::export_voice_frame_key(&provider, &group_id).unwrap();
+    assert_ne!(
+        metadata_key, voice_key,
+        "export_metadata_key and export_voice_frame_key must produce distinct keys \
+         (different labels: hush-guild-metadata vs hush-voice-frame-key)"
+    );
+}
+
+/// Test 4: export_voice_frame_key returns a different key after self_update advances the epoch.
 #[test]
 fn test_export_voice_frame_key_changes_after_epoch_advance() {
     use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;

@@ -602,6 +602,58 @@ pub fn wasm_export_voice_frame_key(
 }
 
 // ---------------------------------------------------------------------------
+// exportMetadataKey (0O-02)
+// ---------------------------------------------------------------------------
+
+/// Derive a 32-byte AES-256-GCM key for encrypting guild metadata from the
+/// current MLS group epoch.
+///
+/// This is a pure derivation — no state mutation. The key is deterministic for a
+/// given group at a given epoch. The label `"hush-guild-metadata"` is intentionally
+/// distinct from `"hush-voice-frame-key"` (RFC 9420 §8.4 label separation), so
+/// metadata and voice frame keys are cryptographically independent even when
+/// derived from the same group state.
+///
+/// The `signing_private_key`, `signing_public_key`, and `credential_bytes` parameters
+/// are accepted for API consistency with other WASM exports. `export_secret` does
+/// not require the signer — these are unused inside this call.
+///
+/// # Arguments
+///
+/// - `group_id_bytes`: raw group ID bytes (channel or guild UUID bytes)
+/// - `signing_private_key`: 64-byte key from `generateCredential` (unused, kept for consistency)
+/// - `signing_public_key`: 32-byte key from `generateCredential` (unused, kept for consistency)
+/// - `credential_bytes`: TLS-serialized credential (unused, kept for consistency)
+///
+/// # Returns
+///
+/// `{ metadataKeyBytes: Uint8Array(32), epoch: number }`
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportMetadataKeyResult {
+    metadata_key_bytes: Vec<u8>,
+    epoch: u64,
+}
+
+#[wasm_bindgen(js_name = "exportMetadataKey")]
+pub fn wasm_export_metadata_key(
+    group_id_bytes: &[u8],
+    signing_private_key: &[u8],
+    signing_public_key: &[u8],
+    credential_bytes: &[u8],
+) -> Result<JsValue, JsValue> {
+    // Suppress unused-parameter warnings — these params exist for API consistency
+    // with other WASM exports; export_secret does not require the signer.
+    let _ = (signing_private_key, signing_public_key, credential_bytes);
+
+    let provider = JsProvider::default();
+    let metadata_key_bytes = group::export_metadata_key(&provider, group_id_bytes)
+        .map_err(err_js)?;
+    let epoch = group::get_group_epoch(&provider, group_id_bytes).map_err(err_js)?;
+    to_js(&ExportMetadataKeyResult { metadata_key_bytes, epoch })
+}
+
+// ---------------------------------------------------------------------------
 // exportGroupInfo
 // ---------------------------------------------------------------------------
 

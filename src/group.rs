@@ -525,3 +525,43 @@ pub fn export_voice_frame_key<P: OpenMlsProvider>(
         )
         .map_err(|e| format!("export_secret failed: {e:?}"))
 }
+
+/// Derive a 32-byte AES-256-GCM key for encrypting guild metadata from the
+/// current MLS group epoch.
+///
+/// This is a pure derivation using `MlsGroup::export_secret` — no state
+/// mutation occurs and no storage flush is needed. The key is deterministic
+/// for a given group at a given epoch.
+///
+/// The label `"hush-guild-metadata"` is intentionally distinct from
+/// `"hush-voice-frame-key"` so that metadata keys and voice frame keys are
+/// cryptographically independent even when derived from the same group state
+/// (RFC 9420 §8.4 label separation).
+///
+/// # Arguments
+///
+/// * `group_id_bytes` — raw group ID bytes (typically the channel UUID bytes)
+///
+/// # Returns
+///
+/// A 32-byte key for AES-256-GCM encryption of guild metadata (name, icon, etc.).
+///
+/// # Security
+///
+/// Label `"hush-guild-metadata"` is unique to this application per RFC 9420
+/// section 8.4 to prevent cross-context key reuse.  The empty context slice
+/// is intentional — the group ID already encodes the channel/guild identity.
+pub fn export_metadata_key<P: OpenMlsProvider>(
+    provider: &P,
+    group_id_bytes: &[u8],
+) -> Result<Vec<u8>, String> {
+    let group = load_group(provider, group_id_bytes)?;
+    group
+        .export_secret(
+            provider.crypto(),
+            "hush-guild-metadata", // SECURITY: unique per-application label (RFC 9420 §8.4)
+            &[],                   // empty context — group ID already encodes the guild identity
+            32,                    // 256-bit AES-GCM key for guild metadata encryption
+        )
+        .map_err(|e| format!("export_secret failed: {e:?}"))
+}
