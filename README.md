@@ -4,7 +4,7 @@
 
 # hush-crypto
 
-Rust crate implementing the cryptographic core of [Hush](https://gethush.live). Wraps [OpenMLS](https://github.com/openmls/openmls) 0.8.1 (RFC 9420) and is compiled to WASM for use in the web client via wasm-pack. All encryption happens here — the server never sees plaintext.
+Rust crate implementing the cryptographic core of [Hush](https://gethush.live). Wraps [OpenMLS](https://github.com/openmls/openmls) 0.8.1 (RFC 9420) and is compiled to WASM for use in the web client via wasm-pack. All encryption happens here - the server never sees plaintext.
 
 ---
 
@@ -56,21 +56,12 @@ wasm-pack build --target web
 ```
 
 The build output in `pkg/` contains:
-- `hush_crypto.js` — ES module JS bindings
-- `hush_crypto_bg.wasm` — WASM binary
-- `hush_crypto.d.ts` — TypeScript type definitions
-- `package.json` — npm package metadata
+- `hush_crypto.js` - ES module JS bindings
+- `hush_crypto_bg.wasm` - WASM binary
+- `hush_crypto.d.ts` - TypeScript type definitions
+- `package.json` - npm package metadata
 
-The `hush-web` client imports the WASM package from `pkg/` (or from `@gethush/hush-crypto` on npmjs.com).
-
-### Forcing a WASM rebuild
-
-If you pull changes to this crate and the web client still imports a cached WASM:
-
-```bash
-# From hush-web client directory
-npm run build:wasm:force
-```
+The `hush-web` client installs the WASM package from npmjs.org as `@gethush/hush-crypto`.
 
 ---
 

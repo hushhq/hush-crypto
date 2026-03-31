@@ -7,7 +7,7 @@
 //!
 //! Groups are identified by a `group_id_bytes` byte slice (typically the
 //! channel UUID raw bytes or ASCII representation).  Each function loads the
-//! group from the `StorageProvider` via `MlsGroup::load()` — no state bytes
+//! group from the `StorageProvider` via `MlsGroup::load()` - no state bytes
 //! are passed in or returned; OpenMLS auto-persists through the trait.
 
 use openmls::messages::group_info::GroupInfo;
@@ -23,11 +23,11 @@ use crate::credential::CIPHERSUITE;
 /// Result of processing an incoming MLS message.
 #[derive(Debug)]
 pub enum ProcessedMessageResult {
-    /// An application message — contains the decrypted plaintext bytes.
+    /// An application message - contains the decrypted plaintext bytes.
     ApplicationMessage(Vec<u8>),
-    /// A staged commit — the group state has been updated.
+    /// A staged commit - the group state has been updated.
     StagedCommit,
-    /// A proposal — stored in the pending queue for a future commit.
+    /// A proposal - stored in the pending queue for a future commit.
     Proposal,
 }
 
@@ -39,18 +39,18 @@ pub enum ProcessedMessageResult {
 fn make_create_config() -> MlsGroupCreateConfig {
     MlsGroupCreateConfig::builder()
         .sender_ratchet_configuration(SenderRatchetConfiguration::new(
-            10,   // SECURITY: out_of_order_tolerance — allows decrypting messages received
-                  // out of order within this window. Weakens forward secrecy — a compromised
+            10,   // SECURITY: out_of_order_tolerance - allows decrypting messages received
+                  // out of order within this window. Weakens forward secrecy - a compromised
                   // key can decrypt this many additional messages. Set to 10 as a conscious
                   // tradeoff between reliability on lossy/mobile networks and FS strength.
-            1000, // SECURITY: maximum_forward_distance — maximum epoch gap tolerated before
+            1000, // SECURITY: maximum_forward_distance - maximum epoch gap tolerated before
                   // requiring re-sync. Limits how far ahead a malicious commit can advance
                   // the epoch. Conscious tradeoff between availability during network
                   // partitions and FS guarantees.
         ))
         .max_past_epochs(
-            5, // SECURITY: max_past_epochs — retains decryption keys for this many past
-               // epochs. Weakens forward secrecy — past epoch keys remain in memory.
+            5, // SECURITY: max_past_epochs - retains decryption keys for this many past
+               // epochs. Weakens forward secrecy - past epoch keys remain in memory.
                // Conscious tradeoff to handle delayed messages during epoch transitions
                // (member join/leave/rotation).
         )
@@ -63,11 +63,11 @@ fn make_create_config() -> MlsGroupCreateConfig {
 fn make_join_config() -> MlsGroupJoinConfig {
     MlsGroupJoinConfig::builder()
         .sender_ratchet_configuration(SenderRatchetConfiguration::new(
-            10,   // SECURITY: out_of_order_tolerance — see make_create_config for rationale.
-            1000, // SECURITY: maximum_forward_distance — see make_create_config for rationale.
+            10,   // SECURITY: out_of_order_tolerance - see make_create_config for rationale.
+            1000, // SECURITY: maximum_forward_distance - see make_create_config for rationale.
         ))
         .max_past_epochs(
-            5, // SECURITY: max_past_epochs — see make_create_config for rationale.
+            5, // SECURITY: max_past_epochs - see make_create_config for rationale.
         )
         .use_ratchet_tree_extension(true)
         .build()
@@ -121,7 +121,7 @@ fn export_and_serialize_group_info<P: OpenMlsProvider>(
 ///
 /// # Returns
 ///
-/// TLS-serialized `MlsMessageOut` wrapping a `GroupInfo` — POST these bytes
+/// TLS-serialized `MlsMessageOut` wrapping a `GroupInfo` - POST these bytes
 /// to the server so other members can join via External Commit.
 pub fn create_group<P: OpenMlsProvider>(
     provider: &P,
@@ -203,7 +203,7 @@ pub fn join_group_external<P: OpenMlsProvider>(
 ///
 /// # Arguments
 ///
-/// * `key_packages_bytes` — slice of TLS-serialized `KeyPackage` byte vectors.
+/// * `key_packages_bytes` - slice of TLS-serialized `KeyPackage` byte vectors.
 ///
 /// # Returns
 ///
@@ -419,7 +419,7 @@ pub fn self_update<P: OpenMlsProvider>(
 }
 
 /// Send a self-remove proposal.  The leaving member CANNOT commit their own
-/// removal — another member must commit it.
+/// removal - another member must commit it.
 ///
 /// # Returns
 ///
@@ -490,17 +490,17 @@ pub fn get_group_epoch<P: OpenMlsProvider>(
 
 /// Derive a 32-byte AES-256-GCM frame key from the current MLS group epoch.
 ///
-/// This is a pure derivation using `MlsGroup::export_secret` — no state
+/// This is a pure derivation using `MlsGroup::export_secret` - no state
 /// mutation occurs and no storage flush is needed. The key is deterministic
 /// for a given group at a given epoch: calling it twice returns identical bytes.
 ///
 /// After an epoch-advancing commit (member join/leave, self-update), the
-/// derived key changes automatically — providing forward secrecy for voice
+/// derived key changes automatically - providing forward secrecy for voice
 /// frame encryption without any explicit key rotation logic.
 ///
 /// # Arguments
 ///
-/// * `group_id_bytes` — raw group ID bytes (typically the channel UUID bytes)
+/// * `group_id_bytes` - raw group ID bytes (typically the channel UUID bytes)
 ///
 /// # Returns
 ///
@@ -510,7 +510,7 @@ pub fn get_group_epoch<P: OpenMlsProvider>(
 ///
 /// Label `"hush-voice-frame-key"` is unique to this application per RFC 9420
 /// section 8.4 to prevent cross-context key reuse.  The empty context slice
-/// is intentional — the group ID already encodes the channel identity.
+/// is intentional - the group ID already encodes the channel identity.
 pub fn export_voice_frame_key<P: OpenMlsProvider>(
     provider: &P,
     group_id_bytes: &[u8],
@@ -520,7 +520,7 @@ pub fn export_voice_frame_key<P: OpenMlsProvider>(
         .export_secret(
             provider.crypto(),
             "hush-voice-frame-key", // SECURITY: unique per-application label (RFC 9420 §8.4)
-            &[],                    // empty context — group ID already encodes the channel
+            &[],                    // empty context - group ID already encodes the channel
             32,                     // 256-bit AES-GCM key for LiveKit frame encryption
         )
         .map_err(|e| format!("export_secret failed: {e:?}"))
@@ -529,7 +529,7 @@ pub fn export_voice_frame_key<P: OpenMlsProvider>(
 /// Derive a 32-byte AES-256-GCM key for encrypting guild metadata from the
 /// current MLS group epoch.
 ///
-/// This is a pure derivation using `MlsGroup::export_secret` — no state
+/// This is a pure derivation using `MlsGroup::export_secret` - no state
 /// mutation occurs and no storage flush is needed. The key is deterministic
 /// for a given group at a given epoch.
 ///
@@ -540,7 +540,7 @@ pub fn export_voice_frame_key<P: OpenMlsProvider>(
 ///
 /// # Arguments
 ///
-/// * `group_id_bytes` — raw group ID bytes (typically the channel UUID bytes)
+/// * `group_id_bytes` - raw group ID bytes (typically the channel UUID bytes)
 ///
 /// # Returns
 ///
@@ -550,7 +550,7 @@ pub fn export_voice_frame_key<P: OpenMlsProvider>(
 ///
 /// Label `"hush-guild-metadata"` is unique to this application per RFC 9420
 /// section 8.4 to prevent cross-context key reuse.  The empty context slice
-/// is intentional — the group ID already encodes the channel/guild identity.
+/// is intentional - the group ID already encodes the channel/guild identity.
 pub fn export_metadata_key<P: OpenMlsProvider>(
     provider: &P,
     group_id_bytes: &[u8],
@@ -560,7 +560,7 @@ pub fn export_metadata_key<P: OpenMlsProvider>(
         .export_secret(
             provider.crypto(),
             "hush-guild-metadata", // SECURITY: unique per-application label (RFC 9420 §8.4)
-            &[],                   // empty context — group ID already encodes the guild identity
+            &[],                   // empty context - group ID already encodes the guild identity
             32,                    // 256-bit AES-GCM key for guild metadata encryption
         )
         .map_err(|e| format!("export_secret failed: {e:?}"))

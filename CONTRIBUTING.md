@@ -75,7 +75,7 @@ The build output appears in `pkg/`. Confirm the TypeScript definitions (`hush_cr
 This project follows Rust standard conventions plus the guidelines in the root `CLAUDE.md`:
 
 - **Function length:** Keep functions focused. If a function exceeds ~30 lines, extract helpers.
-- **Error handling:** Use `Result<T, JsValue>` for all public WASM-exposed functions. Return meaningful error messages — they surface as JavaScript exceptions in the client.
+- **Error handling:** Use `Result<T, JsValue>` for all public WASM-exposed functions. Return meaningful error messages - they surface as JavaScript exceptions in the client.
 - **No panics in WASM paths:** A panic in WASM terminates the browser process without a useful error. Use `?` and `map_err` instead of `unwrap()` in any code that runs in the browser.
 - **Safety comments:** Document any `unsafe` block with a clear justification.
 - **No secrets in code:** Private keys, seeds, and test vectors containing real entropy must not appear in committed files.
@@ -94,7 +94,7 @@ cargo fmt
 1. **Open an issue first** for non-trivial changes to discuss the approach before writing code.
 2. **Branch from `main`:** `git checkout -b feature/my-feature` or `fix/my-fix`.
 3. **Write tests** for new functionality. Include both happy path and error cases.
-4. **Run `cargo test`, `cargo clippy`, and `cargo fmt`** — all must pass cleanly.
+4. **Run `cargo test`, `cargo clippy`, and `cargo fmt`** - all must pass cleanly.
 5. **Build WASM** and confirm `wasm-pack build --target web` succeeds.
 6. **Open a pull request** against `main` with a description of what changed and why.
 

@@ -6,7 +6,7 @@
 //!   - `generateCredential(identity)` → `{ signingPublicKey, signingPrivateKey, credentialBytes }`
 //!   - `generateKeyPackage(signingPrivateKey, signingPublicKey, credentialBytes)` → `{ keyPackageBytes, privateKeyBytes, hashRefBytes }`
 //!
-//! **Group lifecycle (M.2) — StorageProvider-backed, no groupStateBytes returned**
+//! **Group lifecycle (M.2) - StorageProvider-backed, no groupStateBytes returned**
 //!   - `createGroup(channelIdBytes, signingPrivateKey, signingPublicKey, credentialBytes)` → `{ groupInfoBytes, epoch }`
 //!   - `joinGroupExternal(groupInfoBytes, signingPrivateKey, signingPublicKey, credentialBytes)` → `{ commitBytes, epoch }`
 //!   - `addMembers(groupIdBytes, signingPrivateKey, signingPublicKey, credentialBytes, keyPackagesBytesJson)` → `{ commitBytes, welcomeBytes, groupInfoBytes, epoch }`
@@ -27,7 +27,7 @@ use crate::credential;
 use crate::key_package;
 
 // ---------------------------------------------------------------------------
-// M.1 exports — credential and KeyPackage generation
+// M.1 exports - credential and KeyPackage generation
 // ---------------------------------------------------------------------------
 
 /// No-op initialization hook retained for backward compatibility with
@@ -68,7 +68,7 @@ pub fn wasm_generate_key_package(
 }
 
 // ---------------------------------------------------------------------------
-// M.2 exports — group lifecycle (WASM only)
+// M.2 exports - group lifecycle (WASM only)
 // ---------------------------------------------------------------------------
 //
 // Each function:
@@ -79,7 +79,7 @@ pub fn wasm_generate_key_package(
 // 4. Returns a serde-serialized JsValue with the operation result.
 //
 // Epoch is included in all mutating results so JS can track state.
-// No groupStateBytes are returned — state lives in IndexedDB via the provider.
+// No groupStateBytes are returned - state lives in IndexedDB via the provider.
 
 use crate::group;
 use crate::storage_bridge::JsProvider;
@@ -266,7 +266,7 @@ pub fn wasm_join_group_external(
         group::join_group_external(&provider, &signer, cwk, group_info_bytes).map_err(err_js)?;
 
     // After External Commit, the group is stored; load epoch from the group_id embedded in GroupInfo.
-    // The group_id is the channel_id_bytes used at creation — parse from GroupInfo.
+    // The group_id is the channel_id_bytes used at creation - parse from GroupInfo.
     // Since we don't know channel_id here, we return epoch 0 (server will track epoch via commit).
     // The JS side must query the server for the current epoch after the External Commit is accepted.
     // This is consistent with the M.2 design: server is authoritative on epoch for External Commits.
@@ -336,7 +336,7 @@ pub fn wasm_add_members(
 
 /// Encrypt a plaintext message for the channel MLS group.
 ///
-/// CRITICAL: Store plaintext in local cache BEFORE calling — sender cannot
+/// CRITICAL: Store plaintext in local cache BEFORE calling - sender cannot
 /// decrypt their own ciphertext after this call (forward secrecy).
 ///
 /// # Returns
@@ -556,14 +556,14 @@ pub fn wasm_merge_pending_commit(
 
 /// Derive a 32-byte AES-256-GCM frame key from the current MLS voice group epoch.
 ///
-/// This is a pure derivation — no state mutation. The key is deterministic for a
+/// This is a pure derivation - no state mutation. The key is deterministic for a
 /// given group at a given epoch. Calling it twice returns the same bytes.
 /// After an epoch-advancing commit the key changes, providing automatic forward
 /// secrecy for voice frame encryption.
 ///
 /// The `signing_private_key`, `signing_public_key`, and `credential_bytes` parameters
 /// are accepted for API consistency with other WASM exports. `export_secret` does
-/// not require the signer — these are unused inside this call but callers pass them
+/// not require the signer - these are unused inside this call but callers pass them
 /// to maintain a uniform WASM call signature.
 ///
 /// # Arguments
@@ -590,7 +590,7 @@ pub fn wasm_export_voice_frame_key(
     signing_public_key: &[u8],
     credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
-    // Suppress unused-parameter warnings — these params exist for API consistency
+    // Suppress unused-parameter warnings - these params exist for API consistency
     // with other WASM exports; export_secret does not require the signer.
     let _ = (signing_private_key, signing_public_key, credential_bytes);
 
@@ -608,7 +608,7 @@ pub fn wasm_export_voice_frame_key(
 /// Derive a 32-byte AES-256-GCM key for encrypting guild metadata from the
 /// current MLS group epoch.
 ///
-/// This is a pure derivation — no state mutation. The key is deterministic for a
+/// This is a pure derivation - no state mutation. The key is deterministic for a
 /// given group at a given epoch. The label `"hush-guild-metadata"` is intentionally
 /// distinct from `"hush-voice-frame-key"` (RFC 9420 §8.4 label separation), so
 /// metadata and voice frame keys are cryptographically independent even when
@@ -616,7 +616,7 @@ pub fn wasm_export_voice_frame_key(
 ///
 /// The `signing_private_key`, `signing_public_key`, and `credential_bytes` parameters
 /// are accepted for API consistency with other WASM exports. `export_secret` does
-/// not require the signer — these are unused inside this call.
+/// not require the signer - these are unused inside this call.
 ///
 /// # Arguments
 ///
@@ -642,7 +642,7 @@ pub fn wasm_export_metadata_key(
     signing_public_key: &[u8],
     credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
-    // Suppress unused-parameter warnings — these params exist for API consistency
+    // Suppress unused-parameter warnings - these params exist for API consistency
     // with other WASM exports; export_secret does not require the signer.
     let _ = (signing_private_key, signing_public_key, credential_bytes);
 

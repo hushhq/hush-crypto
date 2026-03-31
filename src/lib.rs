@@ -2,7 +2,7 @@
 //! and group lifecycle management.
 //!
 //! Builds as both a native rlib and a WASM cdylib (wasm-pack --target web).
-//! Group state is persisted through the `StorageProvider` trait —
+//! Group state is persisted through the `StorageProvider` trait -
 //! see `storage_bridge` for native (in-memory) and WASM (JS-callback) impls.
 
 pub mod credential;

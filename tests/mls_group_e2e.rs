@@ -2,7 +2,7 @@
 ///
 /// These tests run on the native target (`cargo test`).
 /// They use the in-memory `OpenMlsRustCrypto` provider (via storage_bridge).
-/// All group operations load state from the provider — no manual state bytes.
+/// All group operations load state from the provider - no manual state bytes.
 
 use hush_crypto::credential::{generate_credential, CIPHERSUITE};
 use hush_crypto::group::{
@@ -62,7 +62,7 @@ fn test_create_group_produces_group_info() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 2: Two-party flow — External Commit join + message round-trip
+// Test 2: Two-party flow - External Commit join + message round-trip
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -122,7 +122,7 @@ fn test_external_commit_join_and_message_roundtrip() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 3: add_members — Alice adds Bob via KeyPackage, Bob joins via Welcome
+// Test 3: add_members - Alice adds Bob via KeyPackage, Bob joins via Welcome
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -200,7 +200,7 @@ fn test_add_members_via_key_package_and_welcome() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 4: remove member — removed member cannot decrypt subsequent messages
+// Test 4: remove member - removed member cannot decrypt subsequent messages
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -253,14 +253,14 @@ fn test_remove_member_blocks_decryption() {
     )
     .expect("Alice create_message after remove failed");
 
-    // Bob tries to decrypt — must fail (he was removed)
+    // Bob tries to decrypt - must fail (he was removed)
     // First Bob needs to process the remove commit to know he was removed
     let bob_signer3 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
     // Processing the remove commit might succeed (it's a StagedCommit indicating removal)
     // but processing subsequent messages must fail
     let _ = process_message(&bob_provider, &bob_signer3, channel_id, &remove_commit_bytes);
 
-    // Bob tries to decrypt message sent after his removal — must fail
+    // Bob tries to decrypt message sent after his removal - must fail
     let bob_signer4 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
     let result = process_message(&bob_provider, &bob_signer4, channel_id, &post_remove_msg);
     assert!(result.is_err(), "Bob must not be able to decrypt messages after removal");

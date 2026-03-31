@@ -15,9 +15,9 @@ use crate::storage::new_provider;
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialOutput {
-    /// Ed25519 signature public key — 32 bytes.
+    /// Ed25519 signature public key - 32 bytes.
     pub signing_public_key: Vec<u8>,
-    /// Ed25519 private key (seed 32 bytes || public key 32 bytes) — 64 bytes total.
+    /// Ed25519 private key (seed 32 bytes || public key 32 bytes) - 64 bytes total.
     /// Stored in this format so the caller can reconstruct `SignatureKeyPair`
     /// via `from_raw(SignatureScheme::ED25519, signing_private_key, signing_public_key)`.
     pub signing_private_key: Vec<u8>,

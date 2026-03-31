@@ -2,8 +2,8 @@
 name = "hush-crypto"
 version = "0.2.0"
 edition = "2021"
-description = "MLS (RFC 9420) cryptographic foundation for Hush — credential and KeyPackage generation"
-license = "MIT"
+description = "MLS (RFC 9420) cryptographic foundation for Hush - credential and KeyPackage generation"
+license = "AGPL-3.0-only"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -137,7 +137,7 @@ fn test_export_voice_frame_key_returns_32_bytes() {
     );
 }
 
-/// Test 2: export_voice_frame_key is deterministic — same group, same epoch → same key.
+/// Test 2: export_voice_frame_key is deterministic - same group, same epoch → same key.
 #[test]
 fn test_export_voice_frame_key_deterministic() {
     let (provider, group_id) = make_test_group();
@@ -167,7 +167,7 @@ fn test_export_metadata_key_returns_32_bytes() {
     );
 }
 
-/// Test 2: export_metadata_key is non-zero — a zero key would indicate a
+/// Test 2: export_metadata_key is non-zero - a zero key would indicate a
 /// catastrophic derivation failure.
 #[test]
 fn test_export_metadata_key_is_nonzero() {
@@ -180,7 +180,7 @@ fn test_export_metadata_key_is_nonzero() {
 }
 
 /// Test 3: export_metadata_key produces different bytes than export_voice_frame_key
-/// for the same group at the same epoch — distinct labels must produce distinct keys.
+/// for the same group at the same epoch - distinct labels must produce distinct keys.
 #[test]
 fn test_export_metadata_key_differs_from_voice_frame_key() {
     let (provider, group_id) = make_test_group();

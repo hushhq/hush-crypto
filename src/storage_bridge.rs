@@ -2,7 +2,7 @@
 //!
 //! # Native builds
 //!
-//! `new_native_provider()` returns `OpenMlsRustCrypto` — the standard in-memory
+//! `new_native_provider()` returns `OpenMlsRustCrypto` - the standard in-memory
 //! provider used in integration tests.  Group state is heap-allocated and lost
 //! when the provider is dropped.
 //!
@@ -31,7 +31,7 @@ pub fn new_native_provider() -> openmls_rust_crypto::OpenMlsRustCrypto {
 }
 
 // ---------------------------------------------------------------------------
-// WASM — JS-callback bridge
+// WASM - JS-callback bridge
 // ---------------------------------------------------------------------------
 
 #[cfg(target_arch = "wasm32")]
@@ -111,7 +111,7 @@ mod wasm_bridge {
     }
 
     // -----------------------------------------------------------------------
-    // Store name constants — each maps to an IndexedDB object store
+    // Store name constants - each maps to an IndexedDB object store
     // -----------------------------------------------------------------------
 
     const STORE_KEY_PACKAGES: &str = "mls_key_packages";
@@ -784,7 +784,7 @@ mod wasm_bridge {
     }
 
     // -----------------------------------------------------------------------
-    // JsProvider — combines JsStorageProvider with RustCrypto
+    // JsProvider - combines JsStorageProvider with RustCrypto
     // -----------------------------------------------------------------------
 
     /// Full `OpenMlsProvider` backed by JS callbacks (storage) + RustCrypto (crypto/rand).
