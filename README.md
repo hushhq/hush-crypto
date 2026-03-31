@@ -61,7 +61,7 @@ The build output in `pkg/` contains:
 - `hush_crypto.d.ts` — TypeScript type definitions
 - `package.json` — npm package metadata
 
-The `hush-web` client imports the WASM package from `pkg/` (or from `@gethush/hush-crypto` on GitHub Packages).
+The `hush-web` client imports the WASM package from `pkg/` (or from `@hushhq/hush-crypto` on GitHub Packages).
 
 ### Forcing a WASM rebuild
 
@@ -96,12 +96,12 @@ All tests run on the native target. WASM-specific behavior is tested in `hush-we
 
 ## NPM Package
 
-The compiled WASM package is published to GitHub Packages as `@gethush/hush-crypto`.
+The compiled WASM package is published to GitHub Packages as `@hushhq/hush-crypto`.
 
 **Consumers need npm auth for GitHub Packages.** Add to your `~/.npmrc`:
 
 ```
-@gethush:registry=https://npm.pkg.github.com
+@hushhq:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
 ```
 

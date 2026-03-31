@@ -17,12 +17,12 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Build WASM
-        run: wasm-pack build --target web --scope gethush --out-dir pkg/
+        run: wasm-pack build --target web --scope hushhq --out-dir pkg/
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@gethush'
+          scope: '@hushhq'
       - name: Verify WASM binary exists
         run: test -f pkg/hush_crypto_bg.wasm || (echo "WASM binary missing" && exit 1)
       - name: Publish to GitHub Packages
