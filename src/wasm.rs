@@ -295,7 +295,7 @@ pub fn wasm_add_members(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
     key_packages_bytes_json: &str,
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
@@ -347,7 +347,7 @@ pub fn wasm_create_message(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
     plaintext: &[u8],
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
@@ -373,7 +373,7 @@ pub fn wasm_process_message(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
     message_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
@@ -423,7 +423,7 @@ pub fn wasm_remove_members(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
     member_identities_json: &str,
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
@@ -471,7 +471,7 @@ pub fn wasm_self_update(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
     let signer = make_wasm_signer(signing_private_key, signing_public_key);
@@ -502,7 +502,7 @@ pub fn wasm_leave_group(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
     let signer = make_wasm_signer(signing_private_key, signing_public_key);
@@ -529,7 +529,7 @@ pub fn wasm_merge_pending_commit(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
     let signer = make_wasm_signer(signing_private_key, signing_public_key);
@@ -667,7 +667,7 @@ pub fn wasm_export_group_info(
     group_id_bytes: &[u8],
     signing_private_key: &[u8],
     signing_public_key: &[u8],
-    credential_bytes: &[u8],
+    _credential_bytes: &[u8],
 ) -> Result<JsValue, JsValue> {
     let provider = JsProvider::default();
     let signer = make_wasm_signer(signing_private_key, signing_public_key);
