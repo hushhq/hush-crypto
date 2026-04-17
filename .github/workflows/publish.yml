@@ -24,6 +24,16 @@ jobs:
           scope: '@gethush'
       - name: Verify WASM binary exists
         run: test -f pkg/hush_crypto_bg.wasm || (echo "WASM binary missing" && exit 1)
+      - name: Check version is not already published
+        run: |
+          PKG_VERSION="$(node -e "console.log(require('./pkg/package.json').version)")"
+          echo "Checking whether @gethush/hush-crypto@${PKG_VERSION} is already on npmjs.com..."
+          if npm view "@gethush/hush-crypto@${PKG_VERSION}" version 2>/dev/null | grep -qF "${PKG_VERSION}"; then
+            echo "ERROR: @gethush/hush-crypto@${PKG_VERSION} is already published."
+            echo "Bump the version in Cargo.toml before tagging a new release."
+            exit 1
+          fi
+          echo "@gethush/hush-crypto@${PKG_VERSION} not yet published - proceeding."
       - name: Publish to npmjs.com
         run: npm publish pkg/ --access public
         env:
