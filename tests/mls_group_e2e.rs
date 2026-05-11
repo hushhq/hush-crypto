@@ -1,9 +1,8 @@
 /// Integration tests for MLS group lifecycle.
 ///
 /// These tests run on the native target (`cargo test`).
-/// They use the in-memory `OpenMlsRustCrypto` provider (via storage_bridge).
+/// They use the in-memory hybrid provider (via storage_bridge).
 /// All group operations load state from the provider - no manual state bytes.
-
 use hush_crypto::credential::{generate_credential, CIPHERSUITE};
 use hush_crypto::group::{
     add_members, create_group, create_message, export_group_info, get_group_epoch,
@@ -12,8 +11,8 @@ use hush_crypto::group::{
 };
 use hush_crypto::key_package::generate_key_package_with_provider;
 use hush_crypto::storage_bridge::new_native_provider;
-use openmls::prelude::*;
 use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;
+use openmls::prelude::*;
 use openmls_basic_credential::SignatureKeyPair;
 
 // ---------------------------------------------------------------------------
@@ -34,8 +33,8 @@ fn make_credential_with_key(
     signing_public_key: &[u8],
 ) -> CredentialWithKey {
     let mut slice = credential_bytes;
-    let credential = Credential::tls_deserialize(&mut slice)
-        .expect("Credential TLS deserialize failed");
+    let credential =
+        Credential::tls_deserialize(&mut slice).expect("Credential TLS deserialize failed");
     CredentialWithKey {
         credential,
         signature_key: signing_public_key.to_vec().into(),
@@ -51,14 +50,21 @@ fn test_create_group_produces_group_info() {
     let provider = new_native_provider();
     let alice = generate_credential("alice:device1").unwrap();
     let signer = make_signer(&alice.signing_private_key, &alice.signing_public_key);
-    let credential_with_key = make_credential_with_key(&alice.credential_bytes, &alice.signing_public_key);
+    let credential_with_key =
+        make_credential_with_key(&alice.credential_bytes, &alice.signing_public_key);
 
     let channel_id = b"01234567-89ab-cdef-0123-456789abcdef";
     let group_info_bytes = create_group(&provider, &signer, credential_with_key, channel_id)
         .expect("create_group failed");
 
-    assert!(!group_info_bytes.is_empty(), "GroupInfo bytes must not be empty");
-    assert!(group_info_bytes.len() > 20, "GroupInfo bytes too short to be valid");
+    assert!(
+        !group_info_bytes.is_empty(),
+        "GroupInfo bytes must not be empty"
+    );
+    assert!(
+        group_info_bytes.len() > 20,
+        "GroupInfo bytes too short to be valid"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -74,8 +80,13 @@ fn test_external_commit_join_and_message_roundtrip() {
     let alice_cwk = make_credential_with_key(&alice.credential_bytes, &alice.signing_public_key);
 
     let channel_id = b"channel-ext-commit-roundtrip-0001";
-    let group_info_bytes = create_group(&alice_provider, &alice_signer, alice_cwk.clone(), channel_id)
-        .expect("Alice create_group failed");
+    let group_info_bytes = create_group(
+        &alice_provider,
+        &alice_signer,
+        alice_cwk.clone(),
+        channel_id,
+    )
+    .expect("Alice create_group failed");
 
     // Bob joins via External Commit
     let bob_provider = new_native_provider();
@@ -86,14 +97,16 @@ fn test_external_commit_join_and_message_roundtrip() {
     let commit_bytes = join_group_external(&bob_provider, &bob_signer, bob_cwk, &group_info_bytes)
         .expect("Bob join_group_external failed");
 
-    assert!(!commit_bytes.is_empty(), "External Commit bytes must not be empty");
+    assert!(
+        !commit_bytes.is_empty(),
+        "External Commit bytes must not be empty"
+    );
 
     // Alice processes Bob's External Commit and merges
     let alice_signer2 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
     let _result = process_message(&alice_provider, &alice_signer2, channel_id, &commit_bytes)
         .expect("Alice process_message (external commit) failed");
-    merge_pending_commit(&alice_provider, channel_id)
-        .expect("Alice merge_pending_commit failed");
+    merge_pending_commit(&alice_provider, channel_id).expect("Alice merge_pending_commit failed");
 
     // Alice sends a message
     let alice_signer3 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
@@ -101,7 +114,10 @@ fn test_external_commit_join_and_message_roundtrip() {
     let msg_bytes = create_message(&alice_provider, &alice_signer3, channel_id, plaintext)
         .expect("Alice create_message failed");
 
-    assert!(!msg_bytes.is_empty(), "MlsMessageOut bytes must not be empty");
+    assert!(
+        !msg_bytes.is_empty(),
+        "MlsMessageOut bytes must not be empty"
+    );
 
     // Bob decrypts the message
     let bob_signer2 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
@@ -158,15 +174,14 @@ fn test_add_members_via_key_package_and_welcome() {
     assert!(!welcome_bytes.is_empty(), "Welcome bytes must not be empty");
 
     // Alice merges commit
-    merge_pending_commit(&alice_provider, channel_id)
-        .expect("Alice merge_pending_commit failed");
+    merge_pending_commit(&alice_provider, channel_id).expect("Alice merge_pending_commit failed");
 
     // Bob joins via Welcome
-    use openmls::prelude::*;
     use openmls::prelude::tls_codec::Deserialize as TlsDeser;
+    use openmls::prelude::*;
     let mut w_slice = welcome_bytes.as_slice();
-    let welcome = MlsMessageIn::tls_deserialize(&mut w_slice)
-        .expect("Welcome TLS deserialize failed");
+    let welcome =
+        MlsMessageIn::tls_deserialize(&mut w_slice).expect("Welcome TLS deserialize failed");
     let join_config = MlsGroupJoinConfig::builder()
         .sender_ratchet_configuration(SenderRatchetConfiguration::new(10, 1000))
         .max_past_epochs(5)
@@ -176,9 +191,11 @@ fn test_add_members_via_key_package_and_welcome() {
         MlsMessageBodyIn::Welcome(w) => w,
         _ => panic!("Expected Welcome message"),
     };
-    let staged_join = StagedWelcome::new_from_welcome(&bob_provider, &join_config, welcome_msg, None)
-        .expect("Bob StagedWelcome::new_from_welcome failed");
-    let _bob_group = staged_join.into_group(&bob_provider)
+    let staged_join =
+        StagedWelcome::new_from_welcome(&bob_provider, &join_config, welcome_msg, None)
+            .expect("Bob StagedWelcome::new_from_welcome failed");
+    let _bob_group = staged_join
+        .into_group(&bob_provider)
         .expect("Bob into_group failed");
 
     // Alice sends a message after Bob joined
@@ -227,8 +244,7 @@ fn test_remove_member_blocks_decryption() {
     let alice_signer2 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
     process_message(&alice_provider, &alice_signer2, channel_id, &commit_bytes)
         .expect("Alice process commit failed");
-    merge_pending_commit(&alice_provider, channel_id)
-        .expect("Alice merge failed");
+    merge_pending_commit(&alice_provider, channel_id).expect("Alice merge failed");
 
     // Bob processes his own join commit (merges it)
     let bob_signer2 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
@@ -240,8 +256,7 @@ fn test_remove_member_blocks_decryption() {
     let (remove_commit_bytes, _group_info) =
         remove_members(&alice_provider, &alice_signer3, channel_id, &[bob_identity])
             .expect("Alice remove_members failed");
-    merge_pending_commit(&alice_provider, channel_id)
-        .expect("Alice merge remove commit failed");
+    merge_pending_commit(&alice_provider, channel_id).expect("Alice merge remove commit failed");
 
     // Alice sends a message after removal
     let alice_signer4 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
@@ -258,12 +273,20 @@ fn test_remove_member_blocks_decryption() {
     let bob_signer3 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
     // Processing the remove commit might succeed (it's a StagedCommit indicating removal)
     // but processing subsequent messages must fail
-    let _ = process_message(&bob_provider, &bob_signer3, channel_id, &remove_commit_bytes);
+    let _ = process_message(
+        &bob_provider,
+        &bob_signer3,
+        channel_id,
+        &remove_commit_bytes,
+    );
 
     // Bob tries to decrypt message sent after his removal - must fail
     let bob_signer4 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
     let result = process_message(&bob_provider, &bob_signer4, channel_id, &post_remove_msg);
-    assert!(result.is_err(), "Bob must not be able to decrypt messages after removal");
+    assert!(
+        result.is_err(),
+        "Bob must not be able to decrypt messages after removal"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -278,20 +301,17 @@ fn test_self_update_advances_epoch() {
     let cwk = make_credential_with_key(&alice.credential_bytes, &alice.signing_public_key);
     let channel_id = b"channel-self-update-epoch-test01";
 
-    create_group(&provider, &signer, cwk, channel_id)
-        .expect("create_group failed");
+    create_group(&provider, &signer, cwk, channel_id).expect("create_group failed");
 
-    let epoch_before = get_group_epoch(&provider, channel_id)
-        .expect("get_group_epoch failed");
+    let epoch_before = get_group_epoch(&provider, channel_id).expect("get_group_epoch failed");
 
     let alice_signer2 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
-    let (_commit_bytes, _group_info) = self_update(&provider, &alice_signer2, channel_id)
-        .expect("self_update failed");
-    merge_pending_commit(&provider, channel_id)
-        .expect("merge_pending_commit failed");
+    let (_commit_bytes, _group_info) =
+        self_update(&provider, &alice_signer2, channel_id).expect("self_update failed");
+    merge_pending_commit(&provider, channel_id).expect("merge_pending_commit failed");
 
-    let epoch_after = get_group_epoch(&provider, channel_id)
-        .expect("get_group_epoch after update failed");
+    let epoch_after =
+        get_group_epoch(&provider, channel_id).expect("get_group_epoch after update failed");
 
     assert!(
         epoch_after > epoch_before,
@@ -329,27 +349,30 @@ fn test_leave_group_returns_proposal() {
     let alice_signer2 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
     process_message(&alice_provider, &alice_signer2, channel_id, &commit_bytes)
         .expect("Alice process join commit failed");
-    merge_pending_commit(&alice_provider, channel_id)
-        .expect("Alice merge failed");
+    merge_pending_commit(&alice_provider, channel_id).expect("Alice merge failed");
 
     // Bob leaves (sends a proposal, not a commit)
     let bob_signer2 = make_signer(&bob.signing_private_key, &bob.signing_public_key);
-    let proposal_bytes = leave_group(&bob_provider, &bob_signer2, channel_id)
-        .expect("Bob leave_group failed");
+    let proposal_bytes =
+        leave_group(&bob_provider, &bob_signer2, channel_id).expect("Bob leave_group failed");
 
-    assert!(!proposal_bytes.is_empty(), "Leave proposal bytes must not be empty");
+    assert!(
+        !proposal_bytes.is_empty(),
+        "Leave proposal bytes must not be empty"
+    );
 
     // Verify it deserializes as a Proposal (not a Commit)
     let mut slice = proposal_bytes.as_slice();
-    let msg_in = MlsMessageIn::tls_deserialize(&mut slice)
-        .expect("Leave proposal TLS deserialize failed");
+    let msg_in =
+        MlsMessageIn::tls_deserialize(&mut slice).expect("Leave proposal TLS deserialize failed");
 
     match msg_in.extract() {
         MlsMessageBodyIn::PublicMessage(pub_msg) => {
             // leave_group sends a Proposal content type
             assert!(
                 matches!(pub_msg.content_type(), ContentType::Proposal),
-                "leave_group must return a Proposal, got {:?}", pub_msg.content_type()
+                "leave_group must return a Proposal, got {:?}",
+                pub_msg.content_type()
             );
         }
         MlsMessageBodyIn::PrivateMessage(_) => {
@@ -372,12 +395,11 @@ fn test_export_group_info_returns_bytes() {
     let cwk = make_credential_with_key(&alice.credential_bytes, &alice.signing_public_key);
     let channel_id = b"channel-export-group-info-test01";
 
-    create_group(&provider, &signer, cwk, channel_id)
-        .expect("create_group failed");
+    create_group(&provider, &signer, cwk, channel_id).expect("create_group failed");
 
     let alice_signer2 = make_signer(&alice.signing_private_key, &alice.signing_public_key);
-    let info_bytes = export_group_info(&provider, &alice_signer2, channel_id)
-        .expect("export_group_info failed");
+    let info_bytes =
+        export_group_info(&provider, &alice_signer2, channel_id).expect("export_group_info failed");
 
     assert!(!info_bytes.is_empty(), "GroupInfo bytes must not be empty");
 }

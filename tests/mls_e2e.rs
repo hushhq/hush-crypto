@@ -1,17 +1,35 @@
 /// Integration tests for OpenMLS credential and KeyPackage generation,
 /// and MLS group lifecycle (export_voice_frame_key).
 /// These tests run on the native target (`cargo test`).
-
-use hush_crypto::credential::generate_credential;
+use hush_crypto::credential::{generate_credential, CIPHERSUITE};
 use hush_crypto::group;
 use hush_crypto::key_package::generate_key_package;
+use hush_crypto::storage_bridge::new_native_provider;
+
+#[test]
+fn test_ciphersuite_is_post_quantum_xwing() {
+    assert_eq!(
+        u16::from(CIPHERSUITE),
+        0x004D,
+        "Hush MLS must use MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519"
+    );
+}
 
 #[test]
 fn test_generate_credential_returns_non_empty_fields() {
     let result = generate_credential("user_id:device_id").unwrap();
-    assert!(!result.signing_public_key.is_empty(), "signing_public_key must not be empty");
-    assert!(!result.signing_private_key.is_empty(), "signing_private_key must not be empty");
-    assert!(!result.credential_bytes.is_empty(), "credential_bytes must not be empty");
+    assert!(
+        !result.signing_public_key.is_empty(),
+        "signing_public_key must not be empty"
+    );
+    assert!(
+        !result.signing_private_key.is_empty(),
+        "signing_private_key must not be empty"
+    );
+    assert!(
+        !result.credential_bytes.is_empty(),
+        "credential_bytes must not be empty"
+    );
 }
 
 #[test]
@@ -45,9 +63,18 @@ fn test_generate_key_package_returns_non_empty_fields() {
         &cred.credential_bytes,
     )
     .unwrap();
-    assert!(!result.key_package_bytes.is_empty(), "key_package_bytes must not be empty");
-    assert!(!result.private_key_bytes.is_empty(), "private_key_bytes must not be empty");
-    assert!(!result.hash_ref_bytes.is_empty(), "hash_ref_bytes must not be empty");
+    assert!(
+        !result.key_package_bytes.is_empty(),
+        "key_package_bytes must not be empty"
+    );
+    assert!(
+        !result.private_key_bytes.is_empty(),
+        "private_key_bytes must not be empty"
+    );
+    assert!(
+        !result.hash_ref_bytes.is_empty(),
+        "hash_ref_bytes must not be empty"
+    );
 }
 
 #[test]
@@ -97,17 +124,20 @@ fn test_generate_key_package_round_trip_tls_deserialization() {
 
 /// Build an in-memory provider and a fresh single-member MLS group for testing.
 /// Returns (provider, group_id_bytes).
-fn make_test_group() -> (openmls_rust_crypto::OpenMlsRustCrypto, Vec<u8>) {
+fn make_test_group() -> (hush_crypto::storage::HushProvider, Vec<u8>) {
     use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;
     use openmls::prelude::*;
     use openmls_basic_credential::SignatureKeyPair;
-    use hush_crypto::credential::CIPHERSUITE;
 
-    let provider = openmls_rust_crypto::OpenMlsRustCrypto::default();
+    let provider = new_native_provider();
     let cred = generate_credential("test_user:device_1").unwrap();
 
     let seed = &cred.signing_private_key[..32];
-    let signer = SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed.to_vec(), cred.signing_public_key.clone());
+    let signer = SignatureKeyPair::from_raw(
+        CIPHERSUITE.into(),
+        seed.to_vec(),
+        cred.signing_public_key.clone(),
+    );
 
     let credential = {
         let mut slice = cred.credential_bytes.as_slice();
@@ -157,8 +187,8 @@ fn test_export_voice_frame_key_deterministic() {
 #[test]
 fn test_export_metadata_key_returns_32_bytes() {
     let (provider, group_id) = make_test_group();
-    let key = group::export_metadata_key(&provider, &group_id)
-        .expect("export_metadata_key must succeed");
+    let key =
+        group::export_metadata_key(&provider, &group_id).expect("export_metadata_key must succeed");
     assert_eq!(
         key.len(),
         32,
@@ -199,13 +229,16 @@ fn test_export_voice_frame_key_changes_after_epoch_advance() {
     use openmls::prelude::tls_codec::Deserialize as TlsDeserialize;
     use openmls::prelude::*;
     use openmls_basic_credential::SignatureKeyPair;
-    use hush_crypto::credential::CIPHERSUITE;
 
-    let provider = openmls_rust_crypto::OpenMlsRustCrypto::default();
+    let provider = new_native_provider();
     let cred = generate_credential("test_user:device_epoch").unwrap();
 
     let seed = &cred.signing_private_key[..32];
-    let signer = SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed.to_vec(), cred.signing_public_key.clone());
+    let signer = SignatureKeyPair::from_raw(
+        CIPHERSUITE.into(),
+        seed.to_vec(),
+        cred.signing_public_key.clone(),
+    );
 
     let credential = {
         let mut slice = cred.credential_bytes.as_slice();
@@ -227,7 +260,10 @@ fn test_export_voice_frame_key_changes_after_epoch_advance() {
     group::merge_pending_commit(&provider, &channel_id).unwrap();
 
     let epoch_after = group::get_group_epoch(&provider, &channel_id).unwrap();
-    assert!(epoch_after > epoch_before, "Epoch must advance after self_update+merge");
+    assert!(
+        epoch_after > epoch_before,
+        "Epoch must advance after self_update+merge"
+    );
 
     let key_after = group::export_voice_frame_key(&provider, &channel_id).unwrap();
     assert_ne!(

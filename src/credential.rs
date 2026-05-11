@@ -26,8 +26,7 @@ pub struct CredentialOutput {
 }
 
 /// Ciphersuite used throughout the Hush MLS deployment.
-pub const CIPHERSUITE: Ciphersuite =
-    Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+pub const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519;
 
 /// Generates a fresh MLS `BasicCredential` and an Ed25519 `SignatureKeyPair`.
 ///
@@ -52,7 +51,7 @@ pub fn generate_credential(identity: &str) -> Result<CredentialOutput, String> {
     let public_key_bytes: Vec<u8> = signing_key.verifying_key().to_bytes().to_vec();
     // Encode private key as 64 bytes: seed (32) || public_key (32).
     let mut private_key_bytes = signing_key.to_bytes().to_vec(); // 32-byte seed
-    private_key_bytes.extend_from_slice(&public_key_bytes);     // + 32-byte public
+    private_key_bytes.extend_from_slice(&public_key_bytes); // + 32-byte public
 
     // Construct SignatureKeyPair for OpenMLS using the raw bytes.
     let signature_keys = SignatureKeyPair::from_raw(

@@ -39,20 +39,20 @@ pub enum ProcessedMessageResult {
 fn make_create_config() -> MlsGroupCreateConfig {
     MlsGroupCreateConfig::builder()
         .sender_ratchet_configuration(SenderRatchetConfiguration::new(
-            10,   // SECURITY: out_of_order_tolerance - allows decrypting messages received
-                  // out of order within this window. Weakens forward secrecy - a compromised
-                  // key can decrypt this many additional messages. Set to 10 as a conscious
-                  // tradeoff between reliability on lossy/mobile networks and FS strength.
+            10, // SECURITY: out_of_order_tolerance - allows decrypting messages received
+            // out of order within this window. Weakens forward secrecy - a compromised
+            // key can decrypt this many additional messages. Set to 10 as a conscious
+            // tradeoff between reliability on lossy/mobile networks and FS strength.
             1000, // SECURITY: maximum_forward_distance - maximum epoch gap tolerated before
-                  // requiring re-sync. Limits how far ahead a malicious commit can advance
-                  // the epoch. Conscious tradeoff between availability during network
-                  // partitions and FS guarantees.
+                 // requiring re-sync. Limits how far ahead a malicious commit can advance
+                 // the epoch. Conscious tradeoff between availability during network
+                 // partitions and FS guarantees.
         ))
         .max_past_epochs(
             5, // SECURITY: max_past_epochs - retains decryption keys for this many past
-               // epochs. Weakens forward secrecy - past epoch keys remain in memory.
-               // Conscious tradeoff to handle delayed messages during epoch transitions
-               // (member join/leave/rotation).
+              // epochs. Weakens forward secrecy - past epoch keys remain in memory.
+              // Conscious tradeoff to handle delayed messages during epoch transitions
+              // (member join/leave/rotation).
         )
         .use_ratchet_tree_extension(true)
         .ciphersuite(CIPHERSUITE)
@@ -75,10 +75,7 @@ fn make_join_config() -> MlsGroupJoinConfig {
 
 /// Load an existing group from storage.  Returns an error if the group is not
 /// found (e.g. storage cleared or wrong group_id).
-fn load_group<P: OpenMlsProvider>(
-    provider: &P,
-    group_id_bytes: &[u8],
-) -> Result<MlsGroup, String> {
+fn load_group<P: OpenMlsProvider>(provider: &P, group_id_bytes: &[u8]) -> Result<MlsGroup, String> {
     let group_id = GroupId::from_slice(group_id_bytes);
     MlsGroup::load(provider.storage(), &group_id)
         .map_err(|e| format!("MlsGroup::load error: {e:?}"))?
@@ -137,14 +134,9 @@ pub fn create_group<P: OpenMlsProvider>(
     let group_id = GroupId::from_slice(channel_id_bytes);
     let config = make_create_config();
 
-    let mut group = MlsGroup::new_with_group_id(
-        provider,
-        signer,
-        &config,
-        group_id,
-        credential_with_key,
-    )
-    .map_err(|e| format!("MlsGroup::new_with_group_id failed: {e:?}"))?;
+    let mut group =
+        MlsGroup::new_with_group_id(provider, signer, &config, group_id, credential_with_key)
+            .map_err(|e| format!("MlsGroup::new_with_group_id failed: {e:?}"))?;
 
     export_and_serialize_group_info(&mut group, provider, signer)
 }
@@ -319,9 +311,9 @@ pub fn process_message<P: OpenMlsProvider>(
         .map_err(|e| format!("group.process_message failed: {e:?}"))?;
 
     match processed.into_content() {
-        ProcessedMessageContent::ApplicationMessage(app_msg) => {
-            Ok(ProcessedMessageResult::ApplicationMessage(app_msg.into_bytes()))
-        }
+        ProcessedMessageContent::ApplicationMessage(app_msg) => Ok(
+            ProcessedMessageResult::ApplicationMessage(app_msg.into_bytes()),
+        ),
         ProcessedMessageContent::ProposalMessage(staged_proposal) => {
             group
                 .store_pending_proposal(provider.storage(), *staged_proposal)
@@ -365,12 +357,7 @@ pub fn remove_members<P: OpenMlsProvider>(
                 .members()
                 .find(|m| m.credential.serialized_content() == identity.as_slice())
                 .map(|m| m.index)
-                .ok_or_else(|| {
-                    format!(
-                        "Member not found: {:?}",
-                        String::from_utf8_lossy(identity)
-                    )
-                })
+                .ok_or_else(|| format!("Member not found: {:?}", String::from_utf8_lossy(identity)))
         })
         .collect::<Result<Vec<_>, String>>()?;
 

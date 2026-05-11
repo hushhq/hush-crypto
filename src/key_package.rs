@@ -7,8 +7,8 @@
 //! Key packages are single-use: once consumed by a group add operation, the
 //! private key is deleted from storage.
 
-use openmls::prelude::*;
 use openmls::prelude::tls_codec::Serialize as TlsSerialize;
+use openmls::prelude::*;
 use openmls_basic_credential::SignatureKeyPair;
 use serde::Serialize;
 
@@ -74,11 +74,8 @@ pub fn generate_key_package(
     };
 
     // Reconstruct the SignatureKeyPair from raw bytes.
-    let signature_keys = SignatureKeyPair::from_raw(
-        CIPHERSUITE.into(),
-        seed,
-        signing_public_key.to_vec(),
-    );
+    let signature_keys =
+        SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed, signing_public_key.to_vec());
 
     // Persist the signature keys in this provider so OpenMLS can verify
     // self-signatures during build().
@@ -153,11 +150,8 @@ pub fn generate_key_package_with_provider<P: openmls::prelude::OpenMlsProvider>(
         signing_private_key.to_vec()
     };
 
-    let signature_keys = SignatureKeyPair::from_raw(
-        CIPHERSUITE.into(),
-        seed,
-        signing_public_key.to_vec(),
-    );
+    let signature_keys =
+        SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed, signing_public_key.to_vec());
     signature_keys
         .store(provider.storage())
         .map_err(|e| format!("signature_keys.store failed: {e}"))?;

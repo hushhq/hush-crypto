@@ -1,6 +1,6 @@
 [package]
 name = "hush-crypto"
-version = "0.2.0"
+version = "0.2.2"
 edition = "2021"
 description = "MLS (RFC 9420) cryptographic foundation for Hush - credential and KeyPackage generation"
 license = "AGPL-3.0-only"
@@ -9,7 +9,8 @@ license = "AGPL-3.0-only"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-openmls = { version = "0.8.1", default-features = false, features = ["openmls_rust_crypto"] }
+openmls = { version = "0.8.1", default-features = false, features = ["libcrux-provider"] }
+openmls_libcrux_crypto = "0.3.1"
 openmls_rust_crypto = "0.5.1"
 openmls_basic_credential = { version = "0.5.0", features = ["clonable"] }
 openmls_memory_storage = "0.5.0"
@@ -26,8 +27,9 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 getrandom = { version = "0.2", features = ["js"] }
+getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 serde-wasm-bindgen = "0.6"
-openmls = { version = "0.8.1", default-features = false, features = ["openmls_rust_crypto", "js"] }
+openmls = { version = "0.8.1", default-features = false, features = ["libcrux-provider", "js"] }
 
 # Patch: sha3 v0.11.0-rc.8 (pulled in by x-wing → hpke-rs-rust-crypto) requires
 # keccak v0.2.0-rc.2, but cargo resolves to the stable 0.2.0 which is missing the

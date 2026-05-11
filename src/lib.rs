@@ -8,6 +8,7 @@
 pub mod credential;
 pub mod group;
 pub mod key_package;
+pub mod provider;
 pub mod storage;
 pub mod storage_bridge;
 

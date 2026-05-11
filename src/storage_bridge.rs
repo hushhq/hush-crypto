@@ -2,9 +2,9 @@
 //!
 //! # Native builds
 //!
-//! `new_native_provider()` returns `OpenMlsRustCrypto` - the standard in-memory
-//! provider used in integration tests.  Group state is heap-allocated and lost
-//! when the provider is dropped.
+//! `new_native_provider()` returns Hush's hybrid OpenMLS provider used in
+//! integration tests.  Group state is heap-allocated and lost when the provider
+//! is dropped.
 //!
 //! # WASM builds
 //!
@@ -15,7 +15,7 @@
 //! bridging OpenMLS's synchronous trait to IndexedDB's async API.
 //!
 //! The `JsProvider` wrapper implements `OpenMlsProvider` by combining
-//! `JsStorageProvider` (storage) with `openmls_rust_crypto::RustCrypto` (crypto + rand).
+//! `JsStorageProvider` (storage) with hybrid crypto + RustCrypto rand.
 
 // ---------------------------------------------------------------------------
 // Native
@@ -23,11 +23,11 @@
 
 /// Returns a fresh in-memory provider for use in native tests.
 ///
-/// The returned value satisfies `OpenMlsProvider` through the blanket impl
-/// provided by `openmls_rust_crypto`.
+/// The returned value supports legacy Hush MLS groups plus the current X-Wing
+/// ciphersuite for newly created groups.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn new_native_provider() -> openmls_rust_crypto::OpenMlsRustCrypto {
-    openmls_rust_crypto::OpenMlsRustCrypto::default()
+pub fn new_native_provider() -> crate::storage::HushProvider {
+    crate::storage::HushProvider::default()
 }
 
 // ---------------------------------------------------------------------------
@@ -36,9 +36,10 @@ pub fn new_native_provider() -> openmls_rust_crypto::OpenMlsRustCrypto {
 
 #[cfg(target_arch = "wasm32")]
 mod wasm_bridge {
+    use crate::provider::HybridCryptoProvider;
     use js_sys::Uint8Array;
     use openmls_rust_crypto::RustCrypto;
-    use openmls_traits::storage::{traits, CURRENT_VERSION, StorageProvider};
+    use openmls_traits::storage::{traits, StorageProvider, CURRENT_VERSION};
     use openmls_traits::OpenMlsProvider;
     use serde_json;
     use wasm_bindgen::prelude::*;
@@ -97,10 +98,7 @@ mod wasm_bridge {
 
     impl From<JsValue> for JsStorageError {
         fn from(v: JsValue) -> Self {
-            JsStorageError(
-                v.as_string()
-                    .unwrap_or_else(|| format!("{:?}", v)),
-            )
+            JsStorageError(v.as_string().unwrap_or_else(|| format!("{:?}", v)))
         }
     }
 
@@ -285,7 +283,11 @@ mod wasm_bridge {
             group_id: &GroupId,
             interim_transcript_hash: &InterimTranscriptHash,
         ) -> Result<(), Self::Error> {
-            js_write(STORE_INTERIM_TRANSCRIPT_HASH, group_id, interim_transcript_hash)
+            js_write(
+                STORE_INTERIM_TRANSCRIPT_HASH,
+                group_id,
+                interim_transcript_hash,
+            )
         }
 
         fn write_context<
@@ -603,8 +605,10 @@ mod wasm_bridge {
             leaf_index: u32,
         ) -> Result<Vec<HpkeKeyPair>, Self::Error> {
             let compound_key = (group_id, epoch, leaf_index);
-            Ok(js_read::<_, Vec<HpkeKeyPair>>(STORE_EPOCH_KEY_PAIRS, &compound_key)?
-                .unwrap_or_default())
+            Ok(
+                js_read::<_, Vec<HpkeKeyPair>>(STORE_EPOCH_KEY_PAIRS, &compound_key)?
+                    .unwrap_or_default(),
+            )
         }
 
         fn key_package<
@@ -784,20 +788,30 @@ mod wasm_bridge {
     }
 
     // -----------------------------------------------------------------------
-    // JsProvider - combines JsStorageProvider with RustCrypto
+    // JsProvider - combines JsStorageProvider with hybrid crypto
     // -----------------------------------------------------------------------
 
-    /// Full `OpenMlsProvider` backed by JS callbacks (storage) + RustCrypto (crypto/rand).
+    /// Full `OpenMlsProvider` backed by JS callbacks, hybrid crypto, and RustCrypto rand.
     ///
     /// Construct with `JsProvider::default()`.
-    #[derive(Default)]
     pub struct JsProvider {
-        crypto: RustCrypto,
+        crypto: HybridCryptoProvider,
+        rand: RustCrypto,
         storage: JsStorageProvider,
     }
 
+    impl Default for JsProvider {
+        fn default() -> Self {
+            Self {
+                crypto: HybridCryptoProvider::default(),
+                rand: RustCrypto::default(),
+                storage: JsStorageProvider,
+            }
+        }
+    }
+
     impl OpenMlsProvider for JsProvider {
-        type CryptoProvider = RustCrypto;
+        type CryptoProvider = HybridCryptoProvider;
         type RandProvider = RustCrypto;
         type StorageProvider = JsStorageProvider;
 
@@ -810,7 +824,7 @@ mod wasm_bridge {
         }
 
         fn rand(&self) -> &Self::RandProvider {
-            &self.crypto
+            &self.rand
         }
     }
 }

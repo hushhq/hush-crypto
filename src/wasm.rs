@@ -73,7 +73,7 @@ pub fn wasm_generate_key_package(
 //
 // Each function:
 // 1. Reconstructs the signer + credential from the provided key bytes.
-// 2. Creates a JsProvider (JsStorageProvider + RustCrypto) which bridges
+// 2. Creates a JsProvider (JsStorageProvider + hybrid crypto) which bridges
 //    to window.mlsStorageBridge.{writeBytes, readBytes, deleteBytes}.
 // 3. Delegates to the corresponding crate::group function.
 // 4. Returns a serde-serialized JsValue with the operation result.
@@ -169,7 +169,11 @@ fn make_wasm_signer(signing_private_key: &[u8], signing_public_key: &[u8]) -> Si
     } else {
         signing_private_key
     };
-    SignatureKeyPair::from_raw(CIPHERSUITE.into(), seed.to_vec(), signing_public_key.to_vec())
+    SignatureKeyPair::from_raw(
+        CIPHERSUITE.into(),
+        seed.to_vec(),
+        signing_public_key.to_vec(),
+    )
 }
 
 fn make_wasm_credential_with_key(
@@ -189,8 +193,7 @@ fn make_wasm_credential_with_key(
 }
 
 fn to_js<T: Serialize>(value: &T) -> Result<JsValue, JsValue> {
-    serde_wasm_bindgen::to_value(value)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    serde_wasm_bindgen::to_value(value).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 fn err_js(msg: String) -> JsValue {
@@ -226,13 +229,15 @@ pub fn wasm_create_group(
     let signer = make_wasm_signer(signing_private_key, signing_public_key);
     let cwk = make_wasm_credential_with_key(credential_bytes, signing_public_key)?;
 
-    let group_info_bytes = group::create_group(&provider, &signer, cwk, channel_id_bytes)
-        .map_err(err_js)?;
+    let group_info_bytes =
+        group::create_group(&provider, &signer, cwk, channel_id_bytes).map_err(err_js)?;
 
-    let epoch = group::get_group_epoch(&provider, channel_id_bytes)
-        .map_err(err_js)?;
+    let epoch = group::get_group_epoch(&provider, channel_id_bytes).map_err(err_js)?;
 
-    to_js(&GroupInfoResult { group_info_bytes, epoch })
+    to_js(&GroupInfoResult {
+        group_info_bytes,
+        epoch,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +277,10 @@ pub fn wasm_join_group_external(
     // This is consistent with the M.2 design: server is authoritative on epoch for External Commits.
     let epoch = 0u64; // External Commit epoch is determined by the server; JS syncs from server ACK.
 
-    to_js(&JoinExternalResult { commit_bytes, epoch })
+    to_js(&JoinExternalResult {
+        commit_bytes,
+        epoch,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -317,8 +325,7 @@ pub fn wasm_add_members(
         .collect::<Result<Vec<_>, JsValue>>()?;
 
     let (commit_bytes, welcome_bytes, group_info_bytes) =
-        group::add_members(&provider, &signer, group_id_bytes, &kp_bytes_list)
-            .map_err(err_js)?;
+        group::add_members(&provider, &signer, group_id_bytes, &kp_bytes_list).map_err(err_js)?;
 
     let epoch = group::get_group_epoch(&provider, group_id_bytes).map_err(err_js)?;
 
@@ -507,8 +514,7 @@ pub fn wasm_leave_group(
     let provider = JsProvider::default();
     let signer = make_wasm_signer(signing_private_key, signing_public_key);
 
-    let proposal_bytes =
-        group::leave_group(&provider, &signer, group_id_bytes).map_err(err_js)?;
+    let proposal_bytes = group::leave_group(&provider, &signer, group_id_bytes).map_err(err_js)?;
 
     to_js(&LeaveGroupResult { proposal_bytes })
 }
@@ -595,10 +601,13 @@ pub fn wasm_export_voice_frame_key(
     let _ = (signing_private_key, signing_public_key, credential_bytes);
 
     let provider = JsProvider::default();
-    let frame_key_bytes = group::export_voice_frame_key(&provider, group_id_bytes)
-        .map_err(err_js)?;
+    let frame_key_bytes =
+        group::export_voice_frame_key(&provider, group_id_bytes).map_err(err_js)?;
     let epoch = group::get_group_epoch(&provider, group_id_bytes).map_err(err_js)?;
-    to_js(&ExportVoiceKeyResult { frame_key_bytes, epoch })
+    to_js(&ExportVoiceKeyResult {
+        frame_key_bytes,
+        epoch,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -647,10 +656,13 @@ pub fn wasm_export_metadata_key(
     let _ = (signing_private_key, signing_public_key, credential_bytes);
 
     let provider = JsProvider::default();
-    let metadata_key_bytes = group::export_metadata_key(&provider, group_id_bytes)
-        .map_err(err_js)?;
+    let metadata_key_bytes =
+        group::export_metadata_key(&provider, group_id_bytes).map_err(err_js)?;
     let epoch = group::get_group_epoch(&provider, group_id_bytes).map_err(err_js)?;
-    to_js(&ExportMetadataKeyResult { metadata_key_bytes, epoch })
+    to_js(&ExportMetadataKeyResult {
+        metadata_key_bytes,
+        epoch,
+    })
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Rust](https://img.shields.io/badge/rust-stable-orange)
-![Ciphersuite](https://img.shields.io/badge/ciphersuite-MLS__128__DHKEMX25519__AES128GCM__SHA256__Ed25519-green)
+![Ciphersuite](https://img.shields.io/badge/ciphersuite-MLS__256__XWING__CHACHA20POLY1305__SHA256__Ed25519-green)
 
 # hush-crypto
 
@@ -24,12 +24,12 @@ Rust crate implementing the cryptographic core of [Hush](https://gethush.live). 
 
 ## Ciphersuite
 
-`MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519`
+`MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519` (`0x004D`)
 
 | Primitive | Algorithm | Specification |
 |-|-|-|
-| Key encapsulation | X25519 DHKEM | RFC 9420 §17.1 |
-| Symmetric encryption | AES-128-GCM | RFC 9420 ciphersuite |
+| Key encapsulation | X-Wing hybrid KEM | X-Wing draft |
+| Symmetric encryption | ChaCha20-Poly1305 | RFC 8439 |
 | Hash | SHA-256 | FIPS 180-4 |
 | Signature | Ed25519 | RFC 8032 |
 
